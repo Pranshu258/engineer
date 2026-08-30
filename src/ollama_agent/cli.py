@@ -13,16 +13,6 @@ from .client import OllamaClient, OllamaError
 from .tools import WorkspaceTools
 
 
-def _positive_int(value: str) -> int:
-    try:
-        parsed = int(value)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError("must be an integer") from exc
-    if parsed < 1:
-        raise argparse.ArgumentTypeError("must be at least 1")
-    return parsed
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="engineer",
@@ -48,12 +38,6 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(os.getenv("ENGINEER_WORKSPACE", ".")),
         help="tool workspace (default: ENGINEER_WORKSPACE or current directory)",
-    )
-    parser.add_argument(
-        "--max-steps",
-        type=_positive_int,
-        default=os.getenv("ENGINEER_MAX_STEPS", "8"),
-        help="maximum model turns per prompt (default: ENGINEER_MAX_STEPS or 8)",
     )
     return parser
 
@@ -90,7 +74,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         client,
         tools,
         model=args.model,
-        max_steps=args.max_steps,
         stream_text=lambda text: print(text, end="", flush=True),
         report_error=lambda text: print(f"\nTool error: {text}", file=sys.stderr),
         report_progress=lambda text: print(
