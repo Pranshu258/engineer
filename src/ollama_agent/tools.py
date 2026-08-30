@@ -94,6 +94,19 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     ),
     _tool("git_list_branches", "List local branches without changing branches."),
     _tool(
+        "git_stage",
+        "Stage selected workspace paths for a later commit. Use before git_commit.",
+        {
+            "paths": {
+                "type": "array",
+                "items": _PATH,
+                "minItems": 1,
+                "description": "Workspace-relative paths; use . for all workspace changes",
+            }
+        },
+        ["paths"],
+    ),
+    _tool(
         "git_commit",
         "Commit already-staged changes after explicit user approval.",
         {"message": {"type": "string"}},
@@ -173,6 +186,7 @@ class WorkspaceTools:
             "git_log": self._git_log,
             "git_show": self._git_show,
             "git_list_branches": self._git_list_branches,
+            "git_stage": self._git_stage,
             "git_commit": self._git_commit,
             "git_switch_branch": self._git_switch_branch,
             "git_create_branch": self._git_create_branch,
@@ -387,6 +401,17 @@ class WorkspaceTools:
 
     def _git_list_branches(self, _arguments: dict[str, Any]) -> str:
         return self._git(["branch", "--list", "--verbose", "--no-abbrev"])
+
+    def _git_stage(self, arguments: dict[str, Any]) -> str:
+        paths = arguments.get("paths")
+        if not isinstance(paths, list) or not paths:
+            raise ToolError("paths must be a non-empty array")
+        relative_paths: list[str] = []
+        for value in paths:
+            path = self._safe_path(value)
+            relative_paths.append(str(path.relative_to(self.workspace)) or ".")
+        self._git(["add", "--", *relative_paths])
+        return f"staged: {', '.join(relative_paths)}\n{self._git_status({})}"
 
     def _git_commit(self, arguments: dict[str, Any]) -> str:
         message = arguments.get("message")

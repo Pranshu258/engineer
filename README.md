@@ -48,7 +48,9 @@ current process's conversation history and `/exit` (or EOF) to quit.
 
 Assistant text is rendered as each Ollama stream chunk arrives. A turn may
 contain multiple native tool calls and may continue through multiple
-tool/model rounds.
+tool/model rounds. There is no fixed model-turn horizon: work continues until
+the model returns a visible final response, the user interrupts, or an API,
+tool, or recovery failure stops the turn.
 
 ### Configuration
 
@@ -57,7 +59,6 @@ tool/model rounds.
 | `--model` | `ENGINEER_MODEL`, then `OLLAMA_MODEL` | `qwen3.5:9b` |
 | `--base-url` | `ENGINEER_OLLAMA_HOST`, then `OLLAMA_HOST` | `http://localhost:11434` |
 | `--workspace` | `ENGINEER_WORKSPACE` | current directory |
-| `--max-steps` | `ENGINEER_MAX_STEPS` | `8` |
 
 For local-only inference, the configured endpoint must use `localhost` or a
 loopback IP address.
@@ -94,15 +95,24 @@ The following dedicated Git operations are read-only and run automatically:
 - show
 - local branch list
 
-Git commit, existing-branch switch, and branch creation each require a fresh
-interactive confirmation. No destructive Git operation is exposed.
+Selected workspace paths can be staged automatically with the dedicated staging
+tool; shell-based Git commands remain blocked. Git commit, existing-branch
+switch, and branch creation each require a fresh interactive confirmation. No
+destructive Git operation is exposed.
 
 ## Errors
 
 The CLI reports unavailable Ollama endpoints, HTTP/model/API failures,
-malformed stream data or native tool arguments, denied actions, tool failures,
-and exhaustion of the configured model-step limit. A failed tool result is
-also returned to the model so it may recover in a later round.
+malformed stream data or native tool arguments, denied actions, and tool
+failures. A failed tool result is also returned to the model so it may recover
+in a later round.
+
+Empty or thinking-only model turns are not treated as successful answers.
+`engineer` asks the model to continue with visible text or a native tool call,
+then stops with an actionable error after three consecutive no-progress turns
+so a malformed model response cannot loop forever. A failed prompt is removed
+from conversation history before the next REPL prompt; any tool or file effects
+that already completed remain in the workspace.
 
 ## Test
 

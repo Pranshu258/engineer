@@ -123,6 +123,29 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertEqual(self.git_decisions, [])
         self.assertEqual(run_git.call_count, 3)
 
+    def test_git_stage_uses_safe_paths_without_prompt(self):
+        with patch.object(self.tools, "_git", return_value="ok") as run_git:
+            result = self.tools.execute(
+                "git_stage", {"paths": ["README.md", "src/ollama_agent"]}
+            )
+
+        self.assertEqual(
+            run_git.call_args_list,
+            [
+                unittest.mock.call(
+                    ["add", "--", "README.md", "src/ollama_agent"]
+                ),
+                unittest.mock.call(["status", "--short", "--branch"]),
+            ],
+        )
+        self.assertIn("staged: README.md, src/ollama_agent", result)
+        self.assertEqual(self.git_decisions, [])
+
+    def test_git_stage_rejects_invalid_or_escaping_paths(self):
+        for paths in ([], "../outside", ["../outside"]):
+            with self.subTest(paths=paths), self.assertRaises(ToolError):
+                self.tools.execute("git_stage", {"paths": paths})
+
     def test_git_mutations_require_confirmation(self):
         cases = (
             ("git_commit", {"message": "message"}, "commit"),
