@@ -10,6 +10,8 @@ from typing import Callable, Sequence
 
 from .agent import Agent, AgentError
 from .client import OllamaClient, OllamaError
+from .profiles import ResourceError, profile_names
+from .runtime import AgentRuntime, RoleModels
 from .tools import WorkspaceTools
 
 
@@ -23,6 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--model",
         default=os.getenv("ENGINEER_MODEL", os.getenv("OLLAMA_MODEL", "qwen3.5:9b")),
         help="Ollama model (default: ENGINEER_MODEL, OLLAMA_MODEL, or qwen3.5:9b)",
+    )
+    parser.add_argument(
+        "--agent",
+        choices=profile_names(),
+        default="engineer",
+        help="agent profile (default: engineer)",
     )
     parser.add_argument(
         "--base-url",
@@ -40,6 +48,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="tool workspace (default: ENGINEER_WORKSPACE or current directory)",
     )
     return parser
+
+
+def resolve_role_models(engineer_model: str) -> RoleModels:
+    return RoleModels(
+        engineer=engineer_model,
+        implementer=os.getenv("ENGINEER_IMPLEMENTER_MODEL", engineer_model),
+        reviewer=os.getenv("ENGINEER_REVIEW_MODEL", engineer_model),
+    )
 
 
 def _interactive_approver(label: str) -> Callable[[str], bool]:
@@ -66,20 +82,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             emit=lambda text: print(f"\n{text}", flush=True),
         )
         client = OllamaClient(args.base_url)
-    except ValueError as exc:
+        runtime = AgentRuntime(
+            client,
+            tools,
+            resolve_role_models(args.model),
+            stream_text=lambda text: print(text, end="", flush=True),
+            report_error=lambda text: print(f"\nTool error: {text}", file=sys.stderr),
+            report_progress=lambda text: print(
+                f"\n[tool] {text}", file=sys.stderr, flush=True
+            ),
+        )
+        agent = runtime.create_agent(args.agent)
+    except (ResourceError, ValueError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
 
-    agent = Agent(
-        client,
-        tools,
-        model=args.model,
-        stream_text=lambda text: print(text, end="", flush=True),
-        report_error=lambda text: print(f"\nTool error: {text}", file=sys.stderr),
-        report_progress=lambda text: print(
-            f"\n[tool] {text}", file=sys.stderr, flush=True
-        ),
-    )
     return _repl(agent, args)
 
 
@@ -98,7 +115,8 @@ def _run_prompt(agent: Agent, prompt: str) -> int:
 
 def _repl(agent: Agent, args: argparse.Namespace) -> int:
     print(
-        f"Engineer REPL — model={args.model}, workspace={agent.tools.workspace}\n"
+        f"Engineer REPL — agent={args.agent}, model={agent.model}, "
+        f"workspace={agent.tools.workspace}\n"
         "Type /exit to quit, /clear to reset this session's conversation."
     )
     while True:

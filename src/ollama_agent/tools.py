@@ -125,6 +125,43 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         ["branch"],
     ),
 ]
+LOAD_SKILL_DEFINITION = _tool(
+    "load_skill",
+    "Load the full instructions for one packaged engineering skill.",
+    {
+        "skill": {
+            "type": "string",
+            "enum": [
+                "systematic-debugging",
+                "codebase-architecture-health",
+                "technical-evidence-map",
+                "safe-merge-conflict-resolution",
+                "engineering-handoff",
+            ],
+        }
+    },
+    ["skill"],
+)
+DELEGATE_AGENT_DEFINITION = _tool(
+    "delegate_agent",
+    "Synchronously run one packaged child agent with an isolated conversation.",
+    {
+        "agent": {
+            "type": "string",
+            "enum": ["scope-disciplined-swe", "adversarial-pr-reviewer"],
+        },
+        "task": {"type": "string"},
+    },
+    ["agent", "task"],
+)
+_TOOL_DEFINITIONS_BY_NAME = {
+    definition["function"]["name"]: definition
+    for definition in [
+        *TOOL_DEFINITIONS,
+        LOAD_SKILL_DEFINITION,
+        DELEGATE_AGENT_DEFINITION,
+    ]
+}
 
 MAX_DIFF_LINES = 120
 MAX_DIFF_CHARS = 12_000
@@ -468,6 +505,16 @@ class WorkspaceTools:
                 f"{output or '(no output)'}"
             )
         return output or "(no output)"
+
+
+def get_tool_definitions(names: tuple[str, ...]) -> list[dict[str, Any]]:
+    definitions: list[dict[str, Any]] = []
+    for name in names:
+        definition = _TOOL_DEFINITIONS_BY_NAME.get(name)
+        if definition is None:
+            raise ValueError(f"Unknown tool definition: {name}")
+        definitions.append(definition)
+    return definitions
 
 
 def parse_tool_arguments(raw: Any) -> dict[str, Any]:

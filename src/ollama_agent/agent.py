@@ -34,6 +34,9 @@ class Agent:
         stream_text: Callable[[str], None] | None = None,
         report_error: Callable[[str], None] | None = None,
         report_progress: Callable[[str], None] | None = None,
+        system_prompt: str = SYSTEM_PROMPT,
+        tool_definitions: list[dict[str, Any]] | None = None,
+        tool_executor: Callable[[str, dict[str, Any]], str] | None = None,
     ) -> None:
         self.client = client
         self.tools = tools
@@ -41,8 +44,12 @@ class Agent:
         self.stream_text = stream_text
         self.report_error = report_error
         self.report_progress = report_progress
+        self.tool_definitions = (
+            TOOL_DEFINITIONS if tool_definitions is None else tool_definitions
+        )
+        self.tool_executor = tool_executor or tools.execute
         self.messages: list[dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": system_prompt}
         ]
 
     def clear(self) -> None:
@@ -66,7 +73,7 @@ class Agent:
                 message = self.client.chat(
                     self.model,
                     request_messages,
-                    TOOL_DEFINITIONS,
+                    self.tool_definitions,
                     on_text=self.stream_text,
                 )
 
@@ -123,7 +130,7 @@ class Agent:
                         arguments = parse_tool_arguments(
                             call["function"].get("arguments")
                         )
-                        result = self.tools.execute(name, arguments)
+                        result = self.tool_executor(name, arguments)
                     except ToolError as exc:
                         result = f"Tool error: {exc}"
                         if self.report_error is not None:
