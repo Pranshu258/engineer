@@ -17,5 +17,12 @@ engineer = "ollama_agent.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+ollama_agent = [
+    "resources/*.json",
+    "resources/agents/*.md",
+    "resources/skills/*.md",
+]
+
 [tool.unittest]
 start-directory = "tests"

@@ -1,0 +1,92 @@
+{
+  "agents": {
+    "engineer": {
+      "description": "Top-level engineering agent with bounded local delegation.",
+      "prompt": "engineer.md",
+      "tools": [
+        "list_files",
+        "read_file",
+        "search_text",
+        "write_file",
+        "edit_file",
+        "run_shell",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_list_branches",
+        "git_stage",
+        "git_commit",
+        "git_switch_branch",
+        "git_create_branch",
+        "load_skill",
+        "delegate_agent"
+      ],
+      "delegates": [
+        "scope-disciplined-swe",
+        "adversarial-pr-reviewer"
+      ]
+    },
+    "scope-disciplined-swe": {
+      "description": "Implementation agent optimized for the smallest complete change.",
+      "prompt": "scope-disciplined-swe.md",
+      "tools": [
+        "list_files",
+        "read_file",
+        "search_text",
+        "write_file",
+        "edit_file",
+        "run_shell",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_list_branches",
+        "git_stage",
+        "git_commit",
+        "git_switch_branch",
+        "git_create_branch",
+        "load_skill"
+      ],
+      "delegates": []
+    },
+    "adversarial-pr-reviewer": {
+      "description": "Read-only adversarial reviewer limited to the local checkout.",
+      "prompt": "adversarial-pr-reviewer.md",
+      "tools": [
+        "list_files",
+        "read_file",
+        "search_text",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_list_branches",
+        "load_skill"
+      ],
+      "delegates": []
+    }
+  },
+  "skills": {
+    "systematic-debugging": {
+      "description": "Evidence-first root-cause diagnosis.",
+      "instructions": "systematic-debugging.md"
+    },
+    "codebase-architecture-health": {
+      "description": "Read-only architecture mapping and structural risk assessment.",
+      "instructions": "codebase-architecture-health.md"
+    },
+    "technical-evidence-map": {
+      "description": "Auditable local evidence for technical decisions.",
+      "instructions": "technical-evidence-map.md"
+    },
+    "safe-merge-conflict-resolution": {
+      "description": "Semantic, non-destructive merge conflict resolution.",
+      "instructions": "safe-merge-conflict-resolution.md"
+    },
+    "engineering-handoff": {
+      "description": "Compact evidence-aware engineering handoffs.",
+      "instructions": "engineering-handoff.md"
+    }
+  }
+}
