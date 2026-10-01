@@ -18,8 +18,32 @@ from .tools import WorkspaceTools
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="engineer",
-        description="Interactive, workspace-scoped coding agent powered only by local Ollama.",
+        description="Interactive or headless, workspace-scoped coding agent powered only by local Ollama.",
     )
+    _add_shared_arguments(parser)
+
+    subparsers = parser.add_subparsers(dest="command")
+    run_parser = subparsers.add_parser(
+        "run",
+        help="run a one-shot task headlessly and exit",
+        description="Run a one-shot task headlessly and exit.",
+    )
+    _add_shared_arguments(run_parser)
+    run_parser.add_argument(
+        "prompt",
+        help="task prompt to execute headlessly",
+    )
+    run_parser.add_argument(
+        "--unattended",
+        action="store_true",
+        default=False,
+        help="auto-approve shell commands and git mutations (for isolated environments/benchmarks)",
+    )
+
+    return parser
+
+
+def _add_shared_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-m",
         "--model",
@@ -47,7 +71,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path(os.getenv("ENGINEER_WORKSPACE", ".")),
         help="tool workspace (default: ENGINEER_WORKSPACE or current directory)",
     )
-    return parser
 
 
 def resolve_role_models(engineer_model: str) -> RoleModels:
@@ -70,10 +93,22 @@ def _interactive_approver(label: str) -> Callable[[str], bool]:
     return approve
 
 
+def _unattended_approver() -> Callable[[str], bool]:
+    def approve(_detail: str) -> bool:
+        return True
+
+    return approve
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    shell_approver = _interactive_approver("Shell command")
-    git_action_approver = _interactive_approver("Git change")
+    unattended = getattr(args, "unattended", False)
+    if unattended:
+        shell_approver = _unattended_approver()
+        git_action_approver = _unattended_approver()
+    else:
+        shell_approver = _interactive_approver("Shell command")
+        git_action_approver = _interactive_approver("Git change")
     try:
         tools = WorkspaceTools(
             args.workspace,
@@ -96,6 +131,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (ResourceError, ValueError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
+
+    if args.command == "run":
+        return _run_prompt(agent, args.prompt)
 
     return _repl(agent, args)
 

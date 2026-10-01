@@ -62,8 +62,21 @@ engineer --agent scope-disciplined-swe
 engineer --agent adversarial-pr-reviewer
 ```
 
-There is intentionally no one-shot prompt mode. Use `/clear` to discard the
-current process's conversation history and `/exit` (or EOF) to quit.
+Run a task headlessly (non-interactively) with `run`:
+
+```sh
+engineer run "Fix the failing tests in tests/test_calc.py"
+```
+
+For isolated environments, benchmarks (e.g. Harbor), or automated workflows,
+pass `--unattended` to automatically approve shell commands and Git operations:
+
+```sh
+engineer run --unattended "Fix the failing tests in tests/test_calc.py"
+```
+
+In interactive REPL mode, use `/clear` to discard the current process's
+conversation history and `/exit` (or EOF) to quit.
 
 Assistant text is rendered as each Ollama stream chunk arrives. A turn may
 contain multiple native tool calls and may continue through multiple
@@ -100,9 +113,9 @@ traversal through symlinks are rejected. Writes and edits need no approval;
 immediately after either operation, `engineer` prints a unified diff capped at
 120 lines and 12,000 characters.
 
-Every shell command requires a fresh `y`/`yes` response in an interactive
-terminal. There is no flag or environment variable that bypasses this prompt,
-and commands are denied when standard input is not a terminal. Shell commands
+In interactive mode, every shell command requires a fresh `y`/`yes` response in an interactive
+terminal. Commands are denied when standard input is not a terminal, unless running
+with `--unattended` (for automated and isolated environments). Shell commands
 start in the workspace and explicit absolute paths, `..`, path expansion, and
 symlink path arguments are rejected. Git commands are rejected by the shell
 tool so they cannot bypass the dedicated Git controls. The approved executable
