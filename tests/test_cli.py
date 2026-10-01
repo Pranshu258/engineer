@@ -76,6 +76,48 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("agent=adversarial-pr-reviewer", stdout.getvalue())
 
+    def test_run_subcommand_parser(self):
+        parser = build_parser()
+        args = parser.parse_args(["run", "Fix the failing test"])
+        self.assertEqual(args.command, "run")
+        self.assertEqual(args.prompt, "Fix the failing test")
+        self.assertFalse(args.unattended)
+
+        args_unattended = parser.parse_args(
+            ["run", "--unattended", "-m", "custom-model", "Do work"]
+        )
+        self.assertEqual(args_unattended.command, "run")
+        self.assertEqual(args_unattended.prompt, "Do work")
+        self.assertTrue(args_unattended.unattended)
+        self.assertEqual(args_unattended.model, "custom-model")
+
+    def test_run_executes_prompt_and_exits(self):
+        with patch("ollama_agent.cli.AgentRuntime") as mock_runtime_cls:
+            mock_runtime = mock_runtime_cls.return_value
+            mock_agent = mock_runtime.create_agent.return_value
+            mock_agent.run.return_value = "Done"
+
+            result = main(["run", "test task"])
+            self.assertEqual(result, 0)
+            mock_agent.run.assert_called_once_with("test task")
+
+    def test_run_unattended_configures_auto_approvers(self):
+        with patch("ollama_agent.cli.AgentRuntime") as mock_runtime_cls, \
+             patch("ollama_agent.cli.WorkspaceTools") as mock_tools_cls:
+            mock_agent = mock_runtime_cls.return_value.create_agent.return_value
+            mock_agent.run.return_value = "Done"
+
+            result = main(["run", "--unattended", "test task"])
+            self.assertEqual(result, 0)
+            mock_tools_cls.assert_called_once()
+            _, kwargs = mock_tools_cls.call_args
+            args = mock_tools_cls.call_args[0]
+            # args: (workspace, shell_approver, git_approver)
+            shell_approver = args[1]
+            git_approver = args[2]
+            self.assertTrue(shell_approver("rm -rf something"))
+            self.assertTrue(git_approver("commit", "test"))
+
 
 if __name__ == "__main__":
     unittest.main()
