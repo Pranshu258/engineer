@@ -500,6 +500,11 @@ class WorkspaceTools:
             part.rstrip() for part in (result.stdout, result.stderr) if part
         )
         if result.returncode:
+            if "not a git repository" in output.lower():
+                raise ToolError(
+                    "Git tools are unavailable because the workspace is not "
+                    "inside a Git repository."
+                )
             raise ToolError(
                 f"Git command failed with exit code {result.returncode}: "
                 f"{output or '(no output)'}"

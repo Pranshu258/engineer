@@ -21,8 +21,9 @@ succeeded unless its tool result says it succeeded. Explain the final result con
 
 MAX_CONSECUTIVE_NO_PROGRESS = 3
 _NO_PROGRESS_RECOVERY_PROMPT = """The previous model turn made no observable progress.
-Continue now with visible final content or a valid native tool call. Do not return only hidden
-thinking."""
+If a tool failed, use its result to choose another applicable tool or explain the blocker; do not
+repeat the failed action. Continue with visible final content or a valid native tool call. Do not
+return only hidden thinking."""
 
 
 class Agent:

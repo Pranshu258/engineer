@@ -1,6 +1,7 @@
 import unittest
 
 from ollama_agent.agent import Agent
+from ollama_agent.tools import ToolError
 
 
 class FakeTools:
@@ -142,6 +143,45 @@ class AgentTests(unittest.TestCase):
             ["system", "user", "assistant"],
         )
         self.assertFalse(any("thinking" in message for message in agent.messages))
+
+    def test_no_progress_recovery_uses_tool_error_instead_of_repeating_action(self):
+        client = FakeClient(
+            [
+                {
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "git_diff",
+                                "arguments": {},
+                            }
+                        }
+                    ]
+                },
+                {"content": "", "thinking": "I should try again."},
+                {"content": "This workspace is not a Git repository."},
+            ]
+        )
+
+        def fail_git_diff(name, _arguments):
+            self.assertEqual(name, "git_diff")
+            raise ToolError(
+                "Git tools are unavailable because the workspace is not inside "
+                "a Git repository."
+            )
+
+        agent = Agent(client, FakeTools(), "test", tool_executor=fail_git_diff)
+
+        self.assertEqual(
+            agent.run("Check the changes."),
+            "This workspace is not a Git repository.",
+        )
+        recovery_messages = client.requests[2][1]
+        self.assertIn(
+            "Git tools are unavailable because the workspace is not inside "
+            "a Git repository.",
+            recovery_messages[-2]["content"],
+        )
+        self.assertIn("repeat the failed action", recovery_messages[-1]["content"])
 
     def test_no_progress_counter_resets_after_tool_progress(self):
         client = FakeClient(

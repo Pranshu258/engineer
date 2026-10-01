@@ -123,6 +123,24 @@ class WorkspaceToolsTests(unittest.TestCase):
         self.assertEqual(self.git_decisions, [])
         self.assertEqual(run_git.call_count, 3)
 
+    def test_git_tool_reports_non_repository_without_git_usage_dump(self):
+        result = unittest.mock.Mock(
+            returncode=129,
+            stdout="",
+            stderr=(
+                "warning: Not a git repository. Use --no-index to compare two paths "
+                "outside a working tree\nusage: git diff ..."
+            ),
+        )
+        with patch("ollama_agent.tools.subprocess.run", return_value=result):
+            with self.assertRaisesRegex(
+                ToolError,
+                "Git tools are unavailable because the workspace is not inside "
+                "a Git repository",
+            ) as error:
+                self.tools.execute("git_diff", {})
+        self.assertNotIn("usage:", str(error.exception))
+
     def test_git_stage_uses_safe_paths_without_prompt(self):
         with patch.object(self.tools, "_git", return_value="ok") as run_git:
             result = self.tools.execute(
